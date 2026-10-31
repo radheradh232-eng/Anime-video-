@@ -1,0 +1,19 @@
+name: anime_ai_studio
+description: AI Anime Generator and Professional Video Editor
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+sdk: '>=3.3.0 <4.0.0'
+
+dependencies:
+flutter:
+sdk: flutter
+
+dev_dependencies:
+flutter_test:
+sdk: flutter
+
+flutter:
+uses-material-design: true
