@@ -1,0 +1,62 @@
+name: Build APK
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'index.html'
+      - '.github/workflows/build.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Create Android project from index.html
+        run: |
+          mkdir -p cap/www
+          cp index.html cap/www/index.html
+          cd cap
+          npm init -y
+          npm i @capacitor/core@6 @capacitor/cli@6 @capacitor/android@6 @capacitor/filesystem@6 @capacitor/share@6
+          npx cap init "Anime AI Studio" com.animeai.studio --web-dir www
+          npx cap add android
+          MF=android/app/src/main/AndroidManifest.xml
+          sed -i 's#</manifest>#    <uses-permission android:name="android.permission.RECORD_AUDIO" />\n    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />\n</manifest>#' $MF
+          grep RECORD_AUDIO $MF || true
+          npx cap sync android
+
+      - name: Build debug APK
+        run: |
+          cd cap/android
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+
+      - name: Upload APK (Actions artifact)
+        uses: actions/upload-artifact@v4
+        with:
+          name: AnimeAI-APK
+          path: cap/android/app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Publish APK in Releases (direct download)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp cap/android/app/build/outputs/apk/debug/app-debug.apk AnimeAI-Studio.apk
+          gh release create "build-${{ github.run_number }}" AnimeAI-Studio.apk \
+            --title "Anime AI Studio build ${{ github.run_number }}" \
+            --notes "Debug APK. Install karne ke liye 'Unknown sources' allow karna padega."
